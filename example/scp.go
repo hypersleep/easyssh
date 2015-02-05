@@ -3,17 +3,17 @@ package main
 import (
 	"fmt"
 
-	"github.com/weekface/easyssh"
+	"github.com/hypersleep/easyssh"
 )
 
 func main() {
 	ssh := &easyssh.MakeConfig{
-		User:   "cjc",
-		Server: "localhost",
+		User:   "core",
+		Server: "core",
 		Key:    "/.ssh/id_rsa",
 	}
 
-	err := ssh.Scp("/home/cjc/zipkin.rb")
+	err := ssh.Scp("/home/core/zipkin.rb")
 
 	if err != nil {
 		panic("Can't run remote command: " + err.Error())
