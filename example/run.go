@@ -1,11 +1,3 @@
-# easyssh
-Golang package for easy remote execution through SSH
-
-So easy to use!
-
-For example `ps ax`
-
-```
 package main
 
 import (
@@ -21,14 +13,10 @@ func main() {
 		Key:    "/.ssh/id_rsa",
 	}
 
-	err := ssh.Scp("/home/cjc/zipkin.rb")
-
+	response, err := ssh.Run("ls")
 	if err != nil {
 		panic("Can't run remote command: " + err.Error())
 	} else {
-		fmt.Println("success")
+		fmt.Println(response)
 	}
 }
-```
-
-For scp function, see: example/scp.go

@@ -1,11 +1,3 @@
-# easyssh
-Golang package for easy remote execution through SSH
-
-So easy to use!
-
-For example `ps ax`
-
-```
 package main
 
 import (
@@ -27,8 +19,9 @@ func main() {
 		panic("Can't run remote command: " + err.Error())
 	} else {
 		fmt.Println("success")
+
+		response, _ := ssh.Run("ls -al zipkin.rb")
+
+		fmt.Println(response)
 	}
 }
-```
-
-For scp function, see: example/scp.go
