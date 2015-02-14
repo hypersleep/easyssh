@@ -1,3 +1,6 @@
+// Package easyssh provides a simple implementation of some SSH protocol features in Go.
+// You can simply run command on remote server or get a file even simple than native console SSH client.
+// Do not need to think about Dials, sessions, defers and public keys...Let easyssh will be think about it!
 package easyssh
 
 import (
@@ -12,12 +15,20 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Contains main authority information.
+// User field should be a name of user on remote server (ex. john in ssh john@example.com).
+// Server field should be a remote machine address (ex. example.com in ssh john@example.com)
+// Key is a path to public key on your local machine.
+// Note: easyssh looking for private key in user's home directory (ex. /home/john + Key).
+// Then ensure your Key begins from '/' (ex. /.ssh/id_rsa)
 type MakeConfig struct {
 	User   string
 	Server string
 	Key    string
 }
 
+// returns ssh.Signer from user you running app home path + cutted key path.
+// (ex. pubkey,err := getKeyFile("/.ssh/id_rsa") )
 func getKeyFile(keypath string) (ssh.Signer, error) {
 	usr, err := user.Current()
 	if err != nil {
@@ -38,6 +49,7 @@ func getKeyFile(keypath string) (ssh.Signer, error) {
 	return pubkey, nil
 }
 
+// connects to remote server using MakeConfig struct and returns *ssh.Session
 func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 	pubkey, err := getKeyFile(ssh_conf.Key)
 	if err != nil {
@@ -62,7 +74,8 @@ func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 	return session, nil
 }
 
-func (ssh_conf *MakeConfig) Run(cmd string) (string, error) {
+// Runs command on remote machine and returns STDOUT 
+func (ssh_conf *MakeConfig) Run(command string) (string, error) {
 	session, err := ssh_conf.connect()
 
 	if err != nil {
@@ -72,7 +85,7 @@ func (ssh_conf *MakeConfig) Run(cmd string) (string, error) {
 
 	var b bytes.Buffer
 	session.Stdout = &b
-	err = session.Run(cmd)
+	err = session.Run(command)
 	if err != nil {
 		return "", err
 	}
@@ -80,6 +93,7 @@ func (ssh_conf *MakeConfig) Run(cmd string) (string, error) {
 	return b.String(), nil
 }
 
+// Scp uploads sourceFile to remote machine like native scp console app.
 func (ssh_conf *MakeConfig) Scp(sourceFile string) error {
 	session, err := ssh_conf.connect()
 
