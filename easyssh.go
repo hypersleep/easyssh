@@ -18,7 +18,8 @@ import (
 // Contains main authority information.
 // User field should be a name of user on remote server (ex. john in ssh john@example.com).
 // Server field should be a remote machine address (ex. example.com in ssh john@example.com)
-// Key is a path to public key on your local machine.
+// Key is a path to private key on your local machine.
+// Port is SSH server port on remote machine.
 // Note: easyssh looking for private key in user's home directory (ex. /home/john + Key).
 // Then ensure your Key begins from '/' (ex. /.ssh/id_rsa)
 type MakeConfig struct {
