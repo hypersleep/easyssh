@@ -12,6 +12,7 @@ func main() {
 		User:   "john",
 		Server: "example.com",
 		Key:    "/.ssh/id_rsa",
+		Port: "22",
 	}
 
 	// Call Run method with command you want to run on remote server.

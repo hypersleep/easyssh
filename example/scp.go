@@ -12,6 +12,7 @@ func main() {
 		User:   "john",
 		Server: "example.com",
 		Key:    "/.ssh/id_rsa",
+		Port: "22",
 	}
 
 	// Call Scp method with file you want to upload to remote server.
