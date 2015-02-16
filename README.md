@@ -3,7 +3,7 @@
 ## Description
 
 Package easyssh provides a simple implementation of some SSH protocol features in Go.
-You can simply run command on remote server or get a file even simple than native console SSH client.
+You can simply run command on remote server or upload a file even simple than native console SSH client.
 Do not need to think about Dials, sessions, defers and public keys...Let easyssh will be think about it!
 
 ## So easy to use!
