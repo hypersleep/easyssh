@@ -25,6 +25,7 @@ type MakeConfig struct {
 	User   string
 	Server string
 	Key    string
+	Port   string
 }
 
 // returns ssh.Signer from user you running app home path + cutted key path.
@@ -61,7 +62,7 @@ func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 		Auth: []ssh.AuthMethod{ssh.PublicKeys(pubkey)},
 	}
 
-	client, err := ssh.Dial("tcp", ssh_conf.Server+":22", config)
+	client, err := ssh.Dial("tcp", ssh_conf.Server+":"+ssh_conf.Port, config)
 	if err != nil {
 		return nil, err
 	}
