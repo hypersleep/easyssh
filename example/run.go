@@ -11,7 +11,8 @@ func main() {
 	ssh := &easyssh.MakeConfig{
 		User:   "john",
 		Server: "example.com",
-		Key:    "/.ssh/id_rsa",
+		// Optional key or Password without either we try to contact your agent SOCKET
+		Key:  "/.ssh/id_rsa",
 		Port: "22",
 	}
 
