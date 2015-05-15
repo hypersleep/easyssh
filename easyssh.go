@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 // Contains main authority information.
@@ -23,10 +25,11 @@ import (
 // Note: easyssh looking for private key in user's home directory (ex. /home/john + Key).
 // Then ensure your Key begins from '/' (ex. /.ssh/id_rsa)
 type MakeConfig struct {
-	User   string
-	Server string
-	Key    string
-	Port   string
+	User     string
+	Server   string
+	Key      string
+	Port     string
+	Password string
 }
 
 // returns ssh.Signer from user you running app home path + cutted key path.
@@ -53,14 +56,26 @@ func getKeyFile(keypath string) (ssh.Signer, error) {
 
 // connects to remote server using MakeConfig struct and returns *ssh.Session
 func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
-	pubkey, err := getKeyFile(ssh_conf.Key)
-	if err != nil {
-		return nil, err
+	// auths holds the detected ssh auth methods
+	auths := []ssh.AuthMethod{}
+
+	// figure out what auths are requested, what is supported
+	if ssh_conf.Password != "" {
+		auths = append(auths, ssh.Password(ssh_conf.Password))
+	}
+
+	if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
+		auths = append(auths, ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers))
+		defer sshAgent.Close()
+	}
+
+	if pubkey, err := getKeyFile(ssh_conf.Key); err == nil {
+		auths = append(auths, ssh.PublicKeys(pubkey))
 	}
 
 	config := &ssh.ClientConfig{
 		User: ssh_conf.User,
-		Auth: []ssh.AuthMethod{ssh.PublicKeys(pubkey)},
+		Auth: auths,
 	}
 
 	client, err := ssh.Dial("tcp", ssh_conf.Server+":"+ssh_conf.Port, config)
@@ -76,7 +91,7 @@ func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 	return session, nil
 }
 
-// Runs command on remote machine and returns STDOUT 
+// Runs command on remote machine and returns STDOUT
 func (ssh_conf *MakeConfig) Run(command string) (string, error) {
 	session, err := ssh_conf.connect()
 
