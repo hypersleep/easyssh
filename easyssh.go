@@ -1,10 +1,11 @@
-// Package easyssh provides a simple implementation of some SSH protocol features in Go.
-// You can simply run command on remote server or get a file even simple than native console SSH client.
-// Do not need to think about Dials, sessions, defers and public keys...Let easyssh will be think about it!
+// Package easyssh provides a simple implementation of some SSH protocol
+// features in Go. You can simply run a command on a remote server or get a file
+// even simpler than native console SSH client. You don't need to think about
+// Dials, sessions, defers, or public keys... Let easyssh think about it!
 package easyssh
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -91,23 +92,62 @@ func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 	return session, nil
 }
 
-// Runs command on remote machine and returns STDOUT
-func (ssh_conf *MakeConfig) Run(command string) (string, error) {
+// Stream returns one channel that combines the stdout and stderr of the command
+// as it is run on the remote machine, and another that sends true when the
+// command is done. The sessions and channels will then be closed.
+func (ssh_conf *MakeConfig) Stream(command string) (output chan string, done chan bool, err error) {
+	// connect to remote host
 	session, err := ssh_conf.connect()
-
 	if err != nil {
-		return "", err
+		return output, done, err
 	}
-	defer session.Close()
-
-	var b bytes.Buffer
-	session.Stdout = &b
-	err = session.Run(command)
+	// connect to both outputs (they are of type io.Reader)
+	outReader, err := session.StdoutPipe()
 	if err != nil {
-		return "", err
+		return output, done, err
 	}
+	errReader, err := session.StderrPipe()
+	if err != nil {
+		return output, done, err
+	}
+	// combine outputs, create a line-by-line scanner
+	outputReader := io.MultiReader(outReader, errReader)
+	err = session.Start(command)
+	scanner := bufio.NewScanner(outputReader)
+	// continuously send the command's output over the channel
+	outputChan := make(chan string)
+	done = make(chan bool)
+	go func(scanner *bufio.Scanner, out chan string, done chan bool) {
+		defer close(outputChan)
+		defer close(done)
+		for scanner.Scan() {
+			outputChan <- scanner.Text()
+		}
+		// close all of our open resources
+		done <- true
+		session.Close()
+	}(scanner, outputChan, done)
+	return outputChan, done, err
+}
 
-	return b.String(), nil
+// Runs command on remote machine and returns its stdout as a string
+func (ssh_conf *MakeConfig) Run(command string) (outStr string, err error) {
+	outChan, doneChan, err := ssh_conf.Stream(command)
+	if err != nil {
+		return outStr, err
+	}
+	// read from the output channel until the done signal is passed
+	stillGoing := true
+	for stillGoing {
+		select {
+		case <-doneChan:
+			stillGoing = false
+		case line := <-outChan:
+			outStr += line + "\n"
+		}
+	}
+	// return the concatenation of all signals from the output channel
+	return outStr, err
 }
 
 // Scp uploads sourceFile to remote machine like native scp console app.
