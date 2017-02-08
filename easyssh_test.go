@@ -5,8 +5,8 @@ import (
 )
 
 var sshConfig = &MakeConfig{
-	User:     "username",
-	Server:   "example.com",
+	User:     "root",
+	Server:   "172.30.19.2",
 	Password: "password",
 	//Key:  "/.ssh/id_rsa",
 	Port: "22",
@@ -20,22 +20,25 @@ func TestStream(t *testing.T) {
 		{`echo "test"`, "test"},
 	}
 	for _, testCase := range testCases {
-		channel, done, err := sshConfig.Stream(testCase[0])
+		outChannel, errChannel, done, err := sshConfig.Stream(testCase[0])
 		if err != nil {
 			t.Errorf("Stream failed: %s", err)
 		}
 		stillGoing := true
-		output := ""
+		stdout := ""
+		stderr := ""
 		for stillGoing {
 			select {
 			case <-done:
 				stillGoing = false
-			case line := <-channel:
-				output += line
+			case line := <-outChannel:
+				stdout += line
+			case line := <-errChannel:
+				stderr += line
 			}
 		}
-		if output != testCase[1] {
-			t.Error("Output didn't match expected: %s", output)
+		if stdout != testCase[1] {
+			t.Error("Output didn't match expected: %s,%s", stdout, stderr)
 		}
 	}
 }
@@ -46,12 +49,12 @@ func TestRun(t *testing.T) {
 		"echo test", `for i in $(ls); do echo "$i"; done`, "ls",
 	}
 	for _, cmd := range commands {
-		out, err := sshConfig.Run(cmd)
+		stdout, stderr, err := sshConfig.Run(cmd)
 		if err != nil {
 			t.Errorf("Run failed: %s", err)
 		}
-		if out == "" {
-			t.Errorf("Output was empty for command: %s", cmd)
+		if stdout == "" {
+			t.Errorf("Output was empty for command: %s,%s,%s", cmd, stdout, stderr)
 		}
 	}
 }

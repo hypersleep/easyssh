@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-
-	"gopkg.in/hypersleep/easyssh.v0"
+	"github.com/hypersleep/easyssh.v0"
 )
 
 func main() {
@@ -17,11 +16,12 @@ func main() {
 	}
 
 	// Call Run method with command you want to run on remote server.
-	response, err := ssh.Run("ps ax")
+	stdout, stderr, err := ssh.Run("ps ax")
 	// Handle errors
 	if err != nil {
 		panic("Can't run remote command: " + err.Error())
 	} else {
-		fmt.Println(response)
+		fmt.Println("stdout is :", stdout, ";   stderr is :", stderr)
 	}
+
 }
