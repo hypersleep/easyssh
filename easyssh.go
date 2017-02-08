@@ -95,46 +95,53 @@ func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 // Stream returns one channel that combines the stdout and stderr of the command
 // as it is run on the remote machine, and another that sends true when the
 // command is done. The sessions and channels will then be closed.
-func (ssh_conf *MakeConfig) Stream(command string) (output chan string, done chan bool, err error) {
+func (ssh_conf *MakeConfig) Stream(command string) (stdout chan string, stderr chan string, done chan bool, err error) {
 	// connect to remote host
 	session, err := ssh_conf.connect()
 	if err != nil {
-		return output, done, err
+		return stdout, stderr, done, err
 	}
 	// connect to both outputs (they are of type io.Reader)
 	outReader, err := session.StdoutPipe()
 	if err != nil {
-		return output, done, err
+		return stdout, stderr, done, err
 	}
 	errReader, err := session.StderrPipe()
 	if err != nil {
-		return output, done, err
+		return stdout, stderr, done, err
 	}
 	// combine outputs, create a line-by-line scanner
-	outputReader := io.MultiReader(outReader, errReader)
+	stdoutReader := io.MultiReader(outReader)
+	stderrReader := io.MultiReader(errReader)
 	err = session.Start(command)
-	scanner := bufio.NewScanner(outputReader)
+	stdoutScanner := bufio.NewScanner(stdoutReader)
+	stderrScanner := bufio.NewScanner(stderrReader)
 	// continuously send the command's output over the channel
-	outputChan := make(chan string)
+	stdoutChan := make(chan string)
+	stderrChan := make(chan string)
 	done = make(chan bool)
-	go func(scanner *bufio.Scanner, out chan string, done chan bool) {
-		defer close(outputChan)
+	go func(stdoutScanner, stderrScanner *bufio.Scanner, stdoutChan, stderrChan chan string, done chan bool) {
+		defer close(stdoutChan)
+		defer close(stderrChan)
 		defer close(done)
-		for scanner.Scan() {
-			outputChan <- scanner.Text()
+		for stdoutScanner.Scan() {
+			stdoutChan <- stdoutScanner.Text()
+		}
+		for stderrScanner.Scan() {
+			stderrChan <- stderrScanner.Text()
 		}
 		// close all of our open resources
 		done <- true
 		session.Close()
-	}(scanner, outputChan, done)
-	return outputChan, done, err
+	}(stdoutScanner, stderrScanner, stdoutChan, stderrChan, done)
+	return stdoutChan, stderrChan, done, err
 }
 
 // Runs command on remote machine and returns its stdout as a string
-func (ssh_conf *MakeConfig) Run(command string) (outStr string, err error) {
-	outChan, doneChan, err := ssh_conf.Stream(command)
+func (ssh_conf *MakeConfig) Run(command string) (outStr string, errStr string, err error) {
+	stdoutChan, stderrChan, doneChan, err := ssh_conf.Stream(command)
 	if err != nil {
-		return outStr, err
+		return outStr, errStr, err
 	}
 	// read from the output channel until the done signal is passed
 	stillGoing := true
@@ -142,12 +149,14 @@ func (ssh_conf *MakeConfig) Run(command string) (outStr string, err error) {
 		select {
 		case <-doneChan:
 			stillGoing = false
-		case line := <-outChan:
-			outStr += line + "\n"
+		case outline := <-stdoutChan:
+			outStr += outline + "\n"
+		case errline := <-stderrChan:
+			errStr += errline + "\n"
 		}
 	}
 	// return the concatenation of all signals from the output channel
-	return outStr, err
+	return outStr, errStr, err
 }
 
 // Scp uploads sourceFile to remote machine like native scp console app.
