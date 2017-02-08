@@ -160,7 +160,7 @@ func (ssh_conf *MakeConfig) Run(command string) (outStr string, errStr string, e
 }
 
 // Scp uploads sourceFile to remote machine like native scp console app.
-func (ssh_conf *MakeConfig) Scp(sourceFile string) error {
+func (ssh_conf *MakeConfig) Scp(sourceFile string, etargetFile string) error {
 	session, err := ssh_conf.connect()
 
 	if err != nil {
@@ -168,7 +168,7 @@ func (ssh_conf *MakeConfig) Scp(sourceFile string) error {
 	}
 	defer session.Close()
 
-	targetFile := filepath.Base(sourceFile)
+	targetFile := filepath.Base(etargetFile)
 
 	src, srcErr := os.Open(sourceFile)
 
@@ -197,7 +197,7 @@ func (ssh_conf *MakeConfig) Scp(sourceFile string) error {
 		}
 	}()
 
-	if err := session.Run(fmt.Sprintf("scp -t %s", targetFile)); err != nil {
+	if err := session.Run(fmt.Sprintf("scp -tr %s", etargetFile)); err != nil {
 		return err
 	}
 
