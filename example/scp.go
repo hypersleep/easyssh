@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-
-	"gopkg.in/hypersleep/easyssh.v0"
+	"github/hypersleep/easyssh.v0"
 )
 
 func main() {
