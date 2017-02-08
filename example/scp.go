@@ -2,20 +2,20 @@ package main
 
 import (
 	"fmt"
-	"github/hypersleep/easyssh.v0"
+	"github.com/hypersleep/easyssh"
 )
 
 func main() {
 	// Create MakeConfig instance with remote username, server address and path to private key.
 	ssh := &easyssh.MakeConfig{
-		User:   "john",
-		Server: "example.com",
-		Key:    "/.ssh/id_rsa",
-		Port:   "22",
+		User:     "root",
+		Server:   "example.com",
+		Password: "123qwe",
+		Port:     "22",
 	}
 
 	// Call Scp method with file you want to upload to remote server.
-	err := ssh.Scp("/home/core/zipkin.rb")
+	err := ssh.Scp("/root/source.csv", "/tmp/target.csv")
 
 	// Handle errors
 	if err != nil {
@@ -23,8 +23,5 @@ func main() {
 	} else {
 		fmt.Println("success")
 
-		response, _ := ssh.Run("ls -al zipkin.rb")
-
-		fmt.Println(response)
 	}
 }
