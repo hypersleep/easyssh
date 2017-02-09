@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -95,7 +96,7 @@ func (ssh_conf *MakeConfig) connect() (*ssh.Session, error) {
 // Stream returns one channel that combines the stdout and stderr of the command
 // as it is run on the remote machine, and another that sends true when the
 // command is done. The sessions and channels will then be closed.
-func (ssh_conf *MakeConfig) Stream(command string) (stdout chan string, stderr chan string, done chan bool, err error) {
+func (ssh_conf *MakeConfig) Stream(command string, timeout int) (stdout chan string, stderr chan string, done chan bool, err error) {
 	// connect to remote host
 	session, err := ssh_conf.connect()
 	if err != nil {
@@ -120,17 +121,35 @@ func (ssh_conf *MakeConfig) Stream(command string) (stdout chan string, stderr c
 	stdoutChan := make(chan string)
 	stderrChan := make(chan string)
 	done = make(chan bool)
+
 	go func(stdoutScanner, stderrScanner *bufio.Scanner, stdoutChan, stderrChan chan string, done chan bool) {
 		defer close(stdoutChan)
 		defer close(stderrChan)
 		defer close(done)
-		for stdoutScanner.Scan() {
-			stdoutChan <- stdoutScanner.Text()
+
+		timeoutChan := time.After(time.Duration(timeout) * time.Second)
+		res := make(chan bool, 1)
+
+		go func() {
+			for stdoutScanner.Scan() {
+				stdoutChan <- stdoutScanner.Text()
+			}
+			for stderrScanner.Scan() {
+				stderrChan <- stderrScanner.Text()
+			}
+			// close all of our open resources
+			res <- true
+		}()
+
+		select {
+		case <-res:
+			stdoutChan <- ""
+			stderrChan <- ""
+		case <-timeoutChan:
+			stdoutChan <- ""
+			stderrChan <- "Run Command Timeout!"
 		}
-		for stderrScanner.Scan() {
-			stderrChan <- stderrScanner.Text()
-		}
-		// close all of our open resources
+
 		done <- true
 		session.Close()
 	}(stdoutScanner, stderrScanner, stdoutChan, stderrChan, done)
@@ -138,8 +157,8 @@ func (ssh_conf *MakeConfig) Stream(command string) (stdout chan string, stderr c
 }
 
 // Runs command on remote machine and returns its stdout as a string
-func (ssh_conf *MakeConfig) Run(command string) (outStr string, errStr string, err error) {
-	stdoutChan, stderrChan, doneChan, err := ssh_conf.Stream(command)
+func (ssh_conf *MakeConfig) Run(command string, timeout int) (outStr string, errStr string, err error) {
+	stdoutChan, stderrChan, doneChan, err := ssh_conf.Stream(command, timeout)
 	if err != nil {
 		return outStr, errStr, err
 	}
