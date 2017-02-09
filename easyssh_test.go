@@ -20,7 +20,7 @@ func TestStream(t *testing.T) {
 		{`echo "test"`, "test"},
 	}
 	for _, testCase := range testCases {
-		outChannel, errChannel, done, err := sshConfig.Stream(testCase[0])
+		outChannel, errChannel, done, err := sshConfig.Stream(testCase[0], 10)
 		if err != nil {
 			t.Errorf("Stream failed: %s", err)
 		}
@@ -49,12 +49,12 @@ func TestRun(t *testing.T) {
 		"echo test", `for i in $(ls); do echo "$i"; done`, "ls",
 	}
 	for _, cmd := range commands {
-		stdout, stderr, err := sshConfig.Run(cmd)
+		stdout, stderr, istimeout, err := sshConfig.Run(cmd, 10)
 		if err != nil {
 			t.Errorf("Run failed: %s", err)
 		}
 		if stdout == "" {
-			t.Errorf("Output was empty for command: %s,%s,%s", cmd, stdout, stderr)
+			t.Errorf("Output was empty for command: %s,%s,%s", cmd, stdout, stderr, istimeout)
 		}
 	}
 }
