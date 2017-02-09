@@ -145,28 +145,29 @@ func (ssh_conf *MakeConfig) Stream(command string, timeout int) (stdout chan str
 		case <-res:
 			stdoutChan <- ""
 			stderrChan <- ""
+			done <- true
 		case <-timeoutChan:
 			stdoutChan <- ""
 			stderrChan <- "Run Command Timeout!"
+			done <- false
 		}
 
-		done <- true
 		session.Close()
 	}(stdoutScanner, stderrScanner, stdoutChan, stderrChan, done)
 	return stdoutChan, stderrChan, done, err
 }
 
 // Runs command on remote machine and returns its stdout as a string
-func (ssh_conf *MakeConfig) Run(command string, timeout int) (outStr string, errStr string, err error) {
+func (ssh_conf *MakeConfig) Run(command string, timeout int) (outStr string, errStr string, isTimeout bool, err error) {
 	stdoutChan, stderrChan, doneChan, err := ssh_conf.Stream(command, timeout)
 	if err != nil {
-		return outStr, errStr, err
+		return outStr, errStr, isTimeout, err
 	}
 	// read from the output channel until the done signal is passed
 	stillGoing := true
 	for stillGoing {
 		select {
-		case <-doneChan:
+		case isTimeout = <-doneChan:
 			stillGoing = false
 		case outline := <-stdoutChan:
 			outStr += outline + "\n"
@@ -175,7 +176,7 @@ func (ssh_conf *MakeConfig) Run(command string, timeout int) (outStr string, err
 		}
 	}
 	// return the concatenation of all signals from the output channel
-	return outStr, errStr, err
+	return outStr, errStr, isTimeout, err
 }
 
 // Scp uploads sourceFile to remote machine like native scp console app.
